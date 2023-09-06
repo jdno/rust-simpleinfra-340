@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use crate::crates::CratesCommand;
 use chrono::Utc;
 use clap::{Parser, Subcommand};
 use log::{debug, info, warn};
@@ -7,6 +8,7 @@ use reqwest::Method;
 
 use crate::releases::ReleasesCommand;
 
+mod crates;
 mod releases;
 
 /// Gather data for debugging rust-lang/simpleinfra#340
@@ -26,6 +28,10 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Commands {
+    Crates {
+        #[arg(short, long)]
+        krate: String,
+    },
     Releases,
 }
 
@@ -48,8 +54,9 @@ fn main() {
     env_logger::init();
 
     let cli = Cli::parse();
-    let mut command = match cli.command {
-        Commands::Releases => ReleasesCommand::new(),
+    let mut command: Box<dyn Command> = match cli.command {
+        Commands::Crates { krate } => Box::new(CratesCommand::new(krate)),
+        Commands::Releases => Box::new(ReleasesCommand::new()),
     };
 
     let mut output = Vec::new();
@@ -76,11 +83,11 @@ fn main() {
         }
     }
 
-    println!("| Date       | Fastly     | Cloudfront | S3         |");
+    println!("|            | Fastly     | Cloudfront | S3         |");
 
     for stat in output {
         println!(
-            "| {} | {:>10} | {:>10} | {:>10} |",
+            "| {:>10} | {:>10} | {:>10} | {:>10} |",
             stat.step, stat.fastly, stat.cloudfront, stat.s3
         );
     }
